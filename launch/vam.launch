@@ -1,0 +1,6 @@
+<launch>
+  <node name="vam" pkg="uqr_vam" type="uqr_vam" output="screen">
+      <!--Load parameters from config file -->
+      <rosparam command="load" file="$(find uqr_vam)/config/vam.yaml" /> 
+  </node>
+</launch>
