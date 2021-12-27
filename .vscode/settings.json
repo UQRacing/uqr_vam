@@ -35,7 +35,13 @@
         "thread": "cpp",
         "tuple": "cpp",
         "variant": "cpp",
-        "condition_variable": "cpp"
+        "condition_variable": "cpp",
+        "*.ipp": "cpp",
+        "algorithm": "cpp"
     },
-    "C_Cpp.errorSquiggles": "Enabled"
+    "C_Cpp.errorSquiggles": "Enabled",
+    "python.analysis.extraPaths": [
+        "/home/matt/ros_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
 }

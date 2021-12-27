@@ -1,0 +1,2 @@
+# INS timeout in ms before EBS is activated
+insTimeout: 1.0

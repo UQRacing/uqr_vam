@@ -9,9 +9,12 @@ The VAM will turn actuation requests like target velocity and steering wheel ang
 for a given car, and pass this further down the stack (i.e. to the smart motor controller or CAN).
 
 ## Safety
-Very importantly, the VAM also manages the majority of safety including activating the EBS. The VAM listens
-to a bunch of upstream topics and runs a heartbeat on each of them (e.g. if no control input is received,
-the car will EBS). It also listens to the EBS topic itself and will of course EBS if that is received.
+Very importantly, the VAM also manages the majority of safety including activating the EBS (emergency break).
+The following is a full list of conditions that will cause the VAM to activate the EBS:
+
+- It is requested by a node publishing to the EBS topic
+- The INS general status becomes non-OK (e.g. it's overheating)
+- (WIP) A useful INS message is not received
 
 ## Building and running
 `catkin build`, `roslaunch uqr_vam vam.launch`

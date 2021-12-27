@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(uqr_vam)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -11,10 +11,16 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+
+set (SAFETY_FLAGS "-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -g3 ${SAFETY_FLAGS}")
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -g3 ${SAFETY_FLAGS}")
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
