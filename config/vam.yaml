@@ -1,2 +1,4 @@
-# INS timeout in ms before EBS is activated
+# INS timeout in seconds before EBS is activated
 insTimeout: 1.0
+# Time to wait in seconds where we assume the INS failed to initialise
+insFailedToInitTimeout: 20.0

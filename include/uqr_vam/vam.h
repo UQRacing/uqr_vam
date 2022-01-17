@@ -11,7 +11,7 @@
 #define VAM_EBS_ACTIVATE_R(reason) do { \
     ebsReason = reason; \
     safetyState = VAM_EBS_REQUESTED; \
-    updateSafety(); /* required to activate EBS instantly */\
+    updateSafetyFsm(); /* required to activate EBS instantly */\
     return; \
 } while (0);
 
@@ -19,7 +19,7 @@
 #define VAM_EBS_ACTIVATE(reason) do { \
     ebsReason = reason; \
     safetyState = VAM_EBS_REQUESTED; \
-    updateSafety(); /* required to activate EBS instantly */\
+    updateSafetyFsm(); /* required to activate EBS instantly */\
 } while (0);
 
 enum VAMSafetyState {
@@ -37,8 +37,8 @@ public:
     ~VAM() = default;
 
     /// Updates safety FSM
-    void updateSafety(void);
-    /// Updates control signals
+    void updateSafetyFsm(void);
+    /// Updates control signals to SmartMotor (steering) and WaveScultor (engine) - based on FSM state
     void updateControl(void);
 
 private:
@@ -47,7 +47,7 @@ private:
     /// Activates the EBS hardware
     void activateEbs(void);
 
-    // INS callbacks
+    // INS 
     void insStatusCallback(const sbg_driver::SbgStatus &status);
     void odomCallback(const nav_msgs::Odometry &odometry);
 
@@ -59,18 +59,17 @@ private:
     // flags
     VAMSafetyState safetyState = VAM_OK;
     std::string ebsReason = "EBS has not been activated yet";
-    
     /// true if first useful INS message has been received yet
     bool firstOdomMsg = false;
     /// last useful INS message time
     ros::Time lastOdomTime;
 
-    // config
-    double insTimeout;
+    // loaded from config
+    double insTimeout, insFailedToInitTimeout;
 
     // subscribers
     ros::Subscriber insStatusSub, insEkfNavSub;
 
     // publishers
-    // ...
+    // TODO we will need some CAN stuff here for uqr_ccm
 };

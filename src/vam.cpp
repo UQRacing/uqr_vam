@@ -7,6 +7,9 @@ VAM::VAM(ros::NodeHandle &handle) {
     if (!handle.getParam("/vam/insTimeout", insTimeout)) {
         ROS_ERROR("Failed to load INS timeout from config");
     }
+    if (!handle.getParam("/vam/insFailedToInitTimeout", insFailedToInitTimeout)) {
+        ROS_ERROR("Failed to load insFailedToInitTimeout from config");
+    }
 
     insStatusSub = handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
     insEkfNavSub = handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
@@ -16,45 +19,55 @@ VAM::VAM(ros::NodeHandle &handle) {
 
 void VAM::activateEbs(void) {
     ROS_INFO("The EBS would be activated here");
-    // TODO work out what requests to send to hardware to activate EBS
+    // TODO publish EBS active to dfmm (I assume using uqr_ccm)
 }
 
 void VAM::insStatusCallback(const sbg_driver::SbgStatus &status) {
     // check general status
     if (!status.status_general.gps_power) {
-        VAM_EBS_ACTIVATE_R("GPS power failure");
+        VAM_EBS_ACTIVATE_R("INS GPS power failure");
     } else if (!status.status_general.imu_power) {
-        VAM_EBS_ACTIVATE_R("IMU power failure");
+        VAM_EBS_ACTIVATE_R("INS IMU power failure");
     } else if (!status.status_general.main_power) {
-        VAM_EBS_ACTIVATE_R("Main power failure");
+        VAM_EBS_ACTIVATE_R("INS main power failure");
     } else if (!status.status_general.settings) {
-        VAM_EBS_ACTIVATE_R("Settings load error");
+        VAM_EBS_ACTIVATE_R("INS settings load error");
     } else if (!status.status_general.temperature) {
-        VAM_EBS_ACTIVATE_R("INS overheating!");
+        VAM_EBS_ACTIVATE_R("INS overheating!?");
     }
 }
 
 void VAM::odomCallback(const nav_msgs::Odometry &odometry) {
     if (!firstOdomMsg) {
-        ROS_INFO("First INS odometry message received");
+        // once we receive our first INS odometry message, start timeout detector
+        ROS_INFO("Starting INS odometry timeout detector");
         firstOdomMsg = true;
     }
     lastOdomTime = ros::Time::now();
+
+    // we could also do some sanity checks here if we wanted to
 }
 
 void VAM::checkSafety(void) {
-    // INS CHECKS
-    // check if we've received an INS message
     double insElapsed = (ros::Time::now() - lastOdomTime).toSec();
+
+    // INS CHECKS
+    // check if it's been ages since we initialised
+    if (insElapsed >= insFailedToInitTimeout) {
+        VAM_EBS_ACTIVATE_R("INS probably failed to initialise");
+    }
+    // otherwise check if we haven't received a useful INS message in a while, after receiving one before
     if (insElapsed >= insTimeout && firstOdomMsg) {
         VAM_EBS_ACTIVATE_R("INS odometry timeout");
     }
+
+    // STEERING CHECKS
+    // TODO
 }
 
-void VAM::updateSafety(void) {
+void VAM::updateSafetyFsm(void) {
     if (safetyState == VAM_OK) {
         // check for any safety problems, if there are any, we will activate the EBS
-        ROS_INFO_THROTTLE(30, "The vehicle is operating normally");
         checkSafety();
     } else if (safetyState == VAM_EBS_REQUESTED) {
         // activate EBS
@@ -71,8 +84,8 @@ void VAM::updateSafety(void) {
 
 void VAM::updateControl(void) {
     if (safetyState == VAM_EBS_DONE || safetyState == VAM_EBS_REQUESTED) {
-        // EBS is active, send stop car request and stop steering
-        // TODO
+        // EBS is active, just send stop car request and stop steering
+        // TODO send stop car message to wavesculptor
         return;
     }
 }
@@ -83,11 +96,12 @@ int main(int argc, char **argv){
     ros::NodeHandle nodeHandle("vam");
 
     VAM vam(nodeHandle);
+    ROS_INFO("Waiting for first messages to arrive...");
 
-    // VAM runs at 10 Hz (http://wiki.ros.org/roscpp/Overview/Time)
+    // VAM runs at 10 Hz
     ros::Rate loopRate(10);
     while (ros::ok()) {
-        vam.updateSafety();
+        vam.updateSafetyFsm();
         vam.updateControl();
         loopRate.sleep();
     }
