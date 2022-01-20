@@ -1,93 +1,101 @@
 // Vehicle Actuation Module main file
 // Matt Young, 2021
 #include "uqr_vam/vam.h"
+#include "uqr_vam/timeout.h"
 #include "uqr_vam/defines.h"
 
 VAM::VAM(ros::NodeHandle &handle) {
-    if (!handle.getParam("/vam/insTimeout", insTimeout)) {
+    if (!handle.getParam("/vam/insTimeout", insTimeoutValue)) {
         ROS_ERROR("Failed to load INS timeout from config");
     }
-    if (!handle.getParam("/vam/insFailedToInitTimeout", insFailedToInitTimeout)) {
-        ROS_ERROR("Failed to load insFailedToInitTimeout from config");
+    if (!handle.getParam("/vam/insFailedToInitTimeout", insInitTimeoutValue)) {
+        ROS_ERROR("Failed to load insInitTimeoutValue from config");
+    }
+    if (!handle.getParam("/vam/controlTimeout", controlTimeoutValue)) {
+        ROS_ERROR("Failed to load control timeout from config");
+    }
+    if (!handle.getParam("/vam/controlFailedToInitTimeout", controlInitTimeoutValue)) {
+        ROS_ERROR("Failed to load control failed to init timeout from config");
     }
 
-    insStatusSub = handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
-    insEkfNavSub = handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
-    
-    lastOdomTime = ros::Time::now();
+    handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
+    handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
+    handle.subscribe("/vehicle/safety", 1, &VAM::safetyCallback, this);
+    handle.subscribe("/vehicle/cmd_vel", 1, &VAM::cmdVelCallback, this);
+
+    insTimeout = Timeout(insTimeoutValue, insInitTimeoutValue);
+    controlTimeout = Timeout(controlTimeoutValue, controlInitTimeoutValue);
 }
 
-void VAM::activateEbs(void) {
-    ROS_INFO("The EBS would be activated here");
-    // TODO publish EBS active to dfmm (I assume using uqr_ccm)
+void VAM::activateSoftEbs(void) {
+    //ROS_INFO("The SoftEBS would be activated here");
+    // TODO activate SoftEBS
 }
 
 void VAM::insStatusCallback(const sbg_driver::SbgStatus &status) {
     // check general status
     if (!status.status_general.gps_power) {
-        VAM_EBS_ACTIVATE_R("INS GPS power failure");
+        VAM_SOFTEBS_ACTIVATE("INS GPS power failure");
     } else if (!status.status_general.imu_power) {
-        VAM_EBS_ACTIVATE_R("INS IMU power failure");
+        VAM_SOFTEBS_ACTIVATE("INS IMU power failure");
     } else if (!status.status_general.main_power) {
-        VAM_EBS_ACTIVATE_R("INS main power failure");
+        VAM_SOFTEBS_ACTIVATE("INS main power failure");
     } else if (!status.status_general.settings) {
-        VAM_EBS_ACTIVATE_R("INS settings load error");
+        VAM_SOFTEBS_ACTIVATE("INS settings load error");
     } else if (!status.status_general.temperature) {
-        VAM_EBS_ACTIVATE_R("INS overheating!?");
+        VAM_SOFTEBS_ACTIVATE("INS overheating!?");
     }
+
+    // we don't call insTimeout.update() here because it is not actually useful information
 }
 
 void VAM::odomCallback(const nav_msgs::Odometry &odometry) {
-    if (!firstOdomMsg) {
-        // once we receive our first INS odometry message, start timeout detector
-        ROS_INFO("Starting INS odometry timeout detector");
-        firstOdomMsg = true;
-    }
-    lastOdomTime = ros::Time::now();
-
+    insTimeout.update();
     // we could also do some sanity checks here if we wanted to
 }
 
+void VAM::safetyCallback(const uqr_msgs::Safety &safety) {
+    if (safety.softebs_activate) {
+        VAM_SOFTEBS_ACTIVATE(safety.softebs_reason);
+    }
+}
+
+void VAM::cmdVelCallback(const uqr_msgs::CmdVel &cmdVel) {
+    controlTimeout.update();
+    // also should probably do some sanity checks here
+}
+
 void VAM::checkSafety(void) {
-    double insElapsed = (ros::Time::now() - lastOdomTime).toSec();
-
-    // INS CHECKS
-    // check if it's been ages since we initialised
-    if (insElapsed >= insFailedToInitTimeout) {
-        VAM_EBS_ACTIVATE_R("INS probably failed to initialise");
-    }
-    // otherwise check if we haven't received a useful INS message in a while, after receiving one before
-    if (insElapsed >= insTimeout && firstOdomMsg) {
-        VAM_EBS_ACTIVATE_R("INS odometry timeout");
+    // INS checks
+    if (!insTimeout.isAlive()) {
+        VAM_SOFTEBS_ACTIVATE("INS timed out");
     }
 
-    // STEERING CHECKS
-    // TODO
+    // Path planning and control checks
+    if (!controlTimeout.isAlive()) {
+        VAM_SOFTEBS_ACTIVATE("Control timed out");
+    }
 }
 
 void VAM::updateSafetyFsm(void) {
     if (safetyState == VAM_OK) {
-        // check for any safety problems, if there are any, we will activate the EBS
+        // check for any safety problems, but operate normally
         checkSafety();
-    } else if (safetyState == VAM_EBS_REQUESTED) {
-        // activate EBS
-        ROS_WARN("Activating EBS NOW! Reason: %s", ebsReason.c_str());
-        activateEbs();
-        safetyState = VAM_EBS_DONE;
-    } else if (safetyState == VAM_EBS_DONE) {
-        // just sit here while the EBS stops the car - keep sending activate EBS messages in case a message
-        // was missed somehow
-        ROS_WARN_THROTTLE(5, "EBS has been activated! Stand clear of vehicle!");
-        activateEbs();
+    } else if (safetyState == VAM_SOFTEBS_ACTIVE) {
+        // activate SoftEBS and stay in this state (also keep sending activate EBS messages just in case)
+        ROS_WARN_THROTTLE(1, "ATTENTION: SoftEBS has been activated! Reason: %s", ebsReason.c_str());
+        activateSoftEbs();
     }
 }
 
 void VAM::updateControl(void) {
-    if (safetyState == VAM_EBS_DONE || safetyState == VAM_EBS_REQUESTED) {
-        // EBS is active, just send stop car request and stop steering
+    if (safetyState == VAM_SOFTEBS_ACTIVE) {
+        // EBS is active, just send stop car request and keep current steering angle
         // TODO send stop car message to wavesculptor
         return;
     }
+
+    // TODO send normal control through
 }
 
 int main(int argc, char **argv){
@@ -95,11 +103,10 @@ int main(int argc, char **argv){
     ros::init(argc, argv, "vam");
     ros::NodeHandle nodeHandle("vam");
 
-    VAM vam(nodeHandle);
-    ROS_INFO("Waiting for first messages to arrive...");
+    VAM vam = VAM(nodeHandle);
 
-    // VAM runs at 10 Hz
-    ros::Rate loopRate(10);
+    // VAM runs at 25 Hz
+    ros::Rate loopRate(25);
     while (ros::ok()) {
         vam.updateSafetyFsm();
         vam.updateControl();

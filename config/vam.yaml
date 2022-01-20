@@ -1,4 +1,9 @@
 # INS timeout in seconds before EBS is activated
-insTimeout: 1.0
+insTimeout: 8.0
 # Time to wait in seconds where we assume the INS failed to initialise
-insFailedToInitTimeout: 20.0
+insFailedToInitTimeout: 15.0
+
+# Control timeout in seconds before the EBS is activated
+controlTimeout: 1.0
+# Time to wait in seconds before we assume the controller failed to initialise
+controlFailedToInitTimeout: 25.0

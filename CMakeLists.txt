@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   nav_msgs
+  uqr_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -19,8 +20,10 @@ find_package(Boost REQUIRED COMPONENTS system)
 
 set (SAFETY_FLAGS "-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -g3 ${SAFETY_FLAGS}")
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -g3 ${SAFETY_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -g3 -Wno-unused-parameter ${SAFETY_FLAGS}")
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -g3 -Wno-unused-parameter ${SAFETY_FLAGS}")
+
+# TODO release flags
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -139,7 +142,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(uqr_vam src/vam.cpp)
+add_executable(uqr_vam src/vam.cpp src/timeout.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

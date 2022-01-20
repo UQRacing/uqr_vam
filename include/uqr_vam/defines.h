@@ -3,8 +3,6 @@
 /**
  * Version history:
  * v0.0.1: initial version
+ * v0.2.1: added timeout detector and support for UQR messages
  */
-#define VAM_VERSION "0.0.1"
-
-/** DEBUG ONLY If true, disable message timeouts */
-#define VAM_DISABLE_TIMEOUTS 1
+#define VAM_VERSION "0.2.1"
