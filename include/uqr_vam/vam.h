@@ -12,18 +12,9 @@
 
 /// Activate SoftEBS and return
 #define VAM_SOFTEBS_ACTIVATE(reason) do { \
-    ebsReason = reason; \
-    safetyState = VAM_SOFTEBS_ACTIVE; \
-    updateSafetyFsm(); /* required to activate SoftEBS instantly */\
+    activateSoftEbsMacro(reason); \
     return; \
 } while (0);
-
-// FIXME we can't do the commented out stuff in the above macro because _reason_ can be a variable or a string
-// FIXME we would need to make a function called like activateSoftEbs or whatever
-/*if (safetyState == VAM_SOFTEBS_ACTIVE) { \
-    ROS_WARN("ATTENTION: An additional fault occurred during SoftEBS activation: %s", reason.c_str()); \
-    return; \
-} \*/
 
 enum VAMSafetyState {
     /** SoftEBS is not active, car is operating normally */
@@ -45,8 +36,10 @@ public:
 private:
     /// Called every tick to actually check safety conditions (e.g. timeouts)
     void checkSafety(void);
-    /// Activates the software EBS - stop the vehicle using regen brake ASAP
-    void activateSoftEbs(void);
+    /// Configures the car hardware to implement the SoftEBS: activate regen brake and stop car instantly
+    void startSoftEbs(void);
+    /// Function used in VAM_SOFTEBS_ACTIVATE macro
+    void activateSoftEbsMacro(std::string reason);
 
     // INS callbacks
     void insStatusCallback(const sbg_driver::SbgStatus &status);
@@ -71,11 +64,5 @@ private:
     // TODO we will need some CAN stuff here for uqr_ccm
 
     // subscribers
-    /*
-        handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
-    handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
-    handle.subscribe("/vehicle/safety", 1, &VAM::safetyCallback, this);
-    handle.subscribe("/vehicle/cmd_vel", 1, &VAM::cmdVelCallback, this);
-    */
    ros::Subscriber insStatusSub, imuOdometrySub, vehicleSafetySub, vehicleCmdVelSub;
 };

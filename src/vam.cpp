@@ -27,8 +27,21 @@ VAM::VAM(ros::NodeHandle &handle) {
     controlTimeout = Timeout(controlTimeoutValue, controlInitTimeoutValue);
 }
 
-void VAM::activateSoftEbs(void) {
-    ROS_INFO("The SoftEBS would be activated here");
+void VAM::activateSoftEbsMacro(std::string reason) {
+    // check if EBS has already been activated and warn the user, but do not re-activate SoftEBS
+    if (safetyState == VAM_SOFTEBS_ACTIVE) {
+        ROS_WARN("ATTENTION: An additional fault occurred while the SoftEBS was already active: %s", reason.c_str());
+        return;
+    }
+
+    ebsReason = reason;
+    safetyState = VAM_SOFTEBS_ACTIVE;
+    // required to activate SoftEBS instantly
+    updateSafetyFsm();
+}
+
+void VAM::startSoftEbs(void) {
+    //ROS_INFO("The SoftEBS would be activated here");
     // TODO activate SoftEBS (how do we do that? is there anything to do?)
 }
 
@@ -60,7 +73,8 @@ void VAM::odomCallback(const nav_msgs::Odometry &odometry) {
 void VAM::safetyCallback(const uqr_msgs::Safety &safety) {
     // check if we've been asked to activate the SoftEBS by another node
     if (safety.softebs_activate) {
-        VAM_SOFTEBS_ACTIVATE(safety.softebs_reason);
+        std::string reason = "[external node requested] " + safety.softebs_reason;
+        VAM_SOFTEBS_ACTIVATE(reason);
     }
 }
 
@@ -88,7 +102,7 @@ void VAM::updateSafetyFsm(void) {
     } else if (safetyState == VAM_SOFTEBS_ACTIVE) {
         // activate SoftEBS and stay in this state (also keep sending activate EBS messages just in case)
         ROS_WARN_THROTTLE(1, "ATTENTION: SoftEBS has been activated! Reason: %s", ebsReason.c_str());
-        activateSoftEbs();
+        startSoftEbs();
     }
 }
 
@@ -114,6 +128,8 @@ int main(int argc, char **argv){
     while (ros::ok()) {
         vam.updateSafetyFsm();
         vam.updateControl();
+
+        ros::spinOnce();
         loopRate.sleep();
     }
 
