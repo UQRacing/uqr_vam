@@ -10,16 +10,16 @@ Timeout::Timeout(double expireTime, double failedInitTime) {
 
 bool Timeout::isAlive(void) {
     double duration = (ros::Time::now() - lastUpdateTime).toSec();
-    // if we died before, stay dead
+    // if we died before, stay dead - even if the service may come back to life again
     if (dead) {
         return false;
     }
-    // if the service has elapsed failedInitTime, regardless of if it's alive or not, it's definitely dead
+    // if the service has elapsed failedInitTime, it failed to initialise so we consider it to be dead
     if (duration >= failedInit) {
         dead = true;
         return false;
     }
-    // if we're alive, and have expired the regular timeout, the service is dead
+    // if we're alive, and have expired the regular timeout, the service has died
     if (hasStarted && duration >= expiry) {
         dead = true;
         return false;

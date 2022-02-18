@@ -69,4 +69,13 @@ private:
 
     // publishers
     // TODO we will need some CAN stuff here for uqr_ccm
+
+    // subscribers
+    /*
+        handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
+    handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
+    handle.subscribe("/vehicle/safety", 1, &VAM::safetyCallback, this);
+    handle.subscribe("/vehicle/cmd_vel", 1, &VAM::cmdVelCallback, this);
+    */
+   ros::Subscriber insStatusSub, imuOdometrySub, vehicleSafetySub, vehicleCmdVelSub;
 };

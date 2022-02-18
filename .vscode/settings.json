@@ -37,7 +37,8 @@
         "variant": "cpp",
         "condition_variable": "cpp",
         "*.ipp": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "*.txx": "cpp"
     },
     "C_Cpp.errorSquiggles": "Enabled",
     "python.analysis.extraPaths": [

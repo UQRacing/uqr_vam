@@ -18,18 +18,18 @@ VAM::VAM(ros::NodeHandle &handle) {
         ROS_ERROR("Failed to load control failed to init timeout from config");
     }
 
-    handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
-    handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
-    handle.subscribe("/vehicle/safety", 1, &VAM::safetyCallback, this);
-    handle.subscribe("/vehicle/cmd_vel", 1, &VAM::cmdVelCallback, this);
+    insStatusSub = handle.subscribe("/sbg/status", 1, &VAM::insStatusCallback, this);
+    imuOdometrySub = handle.subscribe("/imu/odometry", 1, &VAM::odomCallback, this);
+    vehicleSafetySub = handle.subscribe("/vehicle/safety", 1, &VAM::safetyCallback, this);
+    vehicleCmdVelSub = handle.subscribe("/vehicle/cmd_vel", 1, &VAM::cmdVelCallback, this);
 
     insTimeout = Timeout(insTimeoutValue, insInitTimeoutValue);
     controlTimeout = Timeout(controlTimeoutValue, controlInitTimeoutValue);
 }
 
 void VAM::activateSoftEbs(void) {
-    //ROS_INFO("The SoftEBS would be activated here");
-    // TODO activate SoftEBS
+    ROS_INFO("The SoftEBS would be activated here");
+    // TODO activate SoftEBS (how do we do that? is there anything to do?)
 }
 
 void VAM::insStatusCallback(const sbg_driver::SbgStatus &status) {
@@ -51,10 +51,14 @@ void VAM::insStatusCallback(const sbg_driver::SbgStatus &status) {
 
 void VAM::odomCallback(const nav_msgs::Odometry &odometry) {
     insTimeout.update();
-    // we could also do some sanity checks here if we wanted to
+    // we could also do some sanity checks here if we wanted to 
+    //  e.g. INS self-reported accuracy is too low to use, we have travelled 100 metres since the last update, 
+    //  our heading is cooked, etc
+    // if those checks fail, activate EBS
 }
 
 void VAM::safetyCallback(const uqr_msgs::Safety &safety) {
+    // check if we've been asked to activate the SoftEBS by another node
     if (safety.softebs_activate) {
         VAM_SOFTEBS_ACTIVATE(safety.softebs_reason);
     }
@@ -62,18 +66,18 @@ void VAM::safetyCallback(const uqr_msgs::Safety &safety) {
 
 void VAM::cmdVelCallback(const uqr_msgs::CmdVel &cmdVel) {
     controlTimeout.update();
-    // also should probably do some sanity checks here
+    // also should probably do some sanity checks here (speed is within limits, otherwise activate EBS)
 }
 
 void VAM::checkSafety(void) {
     // INS checks
     if (!insTimeout.isAlive()) {
-        VAM_SOFTEBS_ACTIVATE("INS timed out");
+        VAM_SOFTEBS_ACTIVATE("INS timed out or failed to initialise");
     }
 
     // Path planning and control checks
     if (!controlTimeout.isAlive()) {
-        VAM_SOFTEBS_ACTIVATE("Control timed out");
+        VAM_SOFTEBS_ACTIVATE("Control timed out or failed to initialise");
     }
 }
 
@@ -95,7 +99,7 @@ void VAM::updateControl(void) {
         return;
     }
 
-    // TODO send normal control through
+    // TODO convert to wavesculptor data and send normal control through to wavesculptor
 }
 
 int main(int argc, char **argv){
