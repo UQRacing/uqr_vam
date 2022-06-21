@@ -1,5 +1,11 @@
-// Vehicle Actuation Module main file
-// Matt Young, 2021
+/*
+ * Vehicle Actuation Module main file
+ * Copyright (c) 2022 Matt Young (UQ Racing Formula SAE Team)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 #include "uqr_vam/vam.h"
 #include "uqr_vam/timeout.h"
 #include "uqr_vam/defines.h"
@@ -73,7 +79,7 @@ void VAM::odomCallback(const nav_msgs::Odometry &odometry) {
 void VAM::safetyCallback(const uqr_msgs::Safety &safety) {
     // check if we've been asked to activate the SoftEBS by another node
     if (safety.softebs_activate) {
-        std::string reason = "[external node requested] " + safety.softebs_reason;
+        std::string reason = "[node request] " + safety.softebs_reason;
         VAM_SOFTEBS_ACTIVATE(reason);
     }
 }

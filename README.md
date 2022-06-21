@@ -30,8 +30,11 @@ The following is a full list of conditions that will cause the VAM to activate t
 
 **Path planning/control**
 
-- (TODO) The vehicle controller times out
-- (TODO) The vehicle controller failed to init
+- The vehicle controller times out
+- The vehicle controller failed to init
 
 ## Building and running
 `catkin build`, `roslaunch uqr_vam vam.launch`
+
+## Licence
+Mozilla Public License v2.0

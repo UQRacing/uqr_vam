@@ -1,3 +1,5 @@
+# Vehicle Actuation Module configuration file
+
 # INS timeout in seconds before EBS is activated
 insTimeout: 8.0
 # Time to wait in seconds where we assume the INS failed to initialise
